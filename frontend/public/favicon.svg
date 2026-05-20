@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Kulp kısmı -->
+  <rect x="30" y="10" width="40" height="20" rx="5" fill="#275185" />
+  <rect x="40" y="15" width="20" height="15" fill="var(--bg-base, #ffffff)" />
+  
+  <!-- Gövde -->
+  <rect x="5" y="25" width="90" height="65" rx="10" fill="#275185" />
+  
+  <!-- Ortadan geçen şerit (bembeyaz / arka plan rengi) -->
+  <rect x="5" y="50" width="90" height="8" fill="var(--bg-base, #ffffff)" />
+  
+  <!-- Kilit / tokası -->
+  <rect x="40" y="50" width="20" height="16" rx="3" fill="var(--bg-base, #ffffff)" />
+  <rect x="43" y="50" width="14" height="12" rx="1" fill="#275185" />
+</svg>

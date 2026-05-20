@@ -1,0 +1,177 @@
+version: '3.9'
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: beworkready_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-beworkready}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
+      POSTGRES_DB: ${POSTGRES_DB:-beworkready_jobs}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - beworkready_net
+
+  mongodb:
+    image: mongo:7
+    container_name: beworkready_mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-beworkready}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-secret}
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - beworkready_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: beworkready_redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-secret}
+    ports:
+      - '6379:6379'
+    networks:
+      - beworkready_net
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: beworkready_rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-beworkready}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-secret}
+    ports:
+      - '5672:5672'
+      - '15672:15672'
+    networks:
+      - beworkready_net
+
+  # ─── Microservices ─────────────────────────────────────────────────────────────
+  api-gateway:
+    build: ./api-gateway
+    container_name: beworkready_gateway
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - JOB_POSTING_URL=http://job-posting-service:3001
+      - JOB_SEARCH_URL=http://job-search-service:3002
+      - NOTIFICATION_URL=http://notification-service:3003
+      - AI_AGENT_URL=http://ai-agent-service:3004
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
+    depends_on:
+      - job-posting-service
+      - job-search-service
+      - notification-service
+      - ai-agent-service
+    networks:
+      - beworkready_net
+
+  job-posting-service:
+    build: ./job-posting-service
+    container_name: beworkready_posting
+    restart: unless-stopped
+    ports:
+      - '3001:3001'
+    environment:
+      - PORT=3001
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-beworkready}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-beworkready_jobs}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-secret}@redis:6379
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-beworkready}:${RABBITMQ_PASSWORD:-secret}@rabbitmq:5672
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_CLIENT_EMAIL=${FIREBASE_CLIENT_EMAIL}
+      - FIREBASE_PRIVATE_KEY=${FIREBASE_PRIVATE_KEY}
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    networks:
+      - beworkready_net
+
+  job-search-service:
+    build: ./job-search-service
+    container_name: beworkready_search
+    restart: unless-stopped
+    ports:
+      - '3002:3002'
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb://${MONGO_USER:-beworkready}:${MONGO_PASSWORD:-secret}@mongodb:27017/beworkready_search?authSource=admin
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-beworkready}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-beworkready_jobs}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-secret}@redis:6379
+    depends_on:
+      - mongodb
+      - postgres
+      - redis
+    networks:
+      - beworkready_net
+
+  notification-service:
+    build: ./notification-service
+    container_name: beworkready_notification
+    restart: unless-stopped
+    ports:
+      - '3003:3003'
+    environment:
+      - PORT=3003
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-beworkready}:${RABBITMQ_PASSWORD:-secret}@rabbitmq:5672
+      - MONGO_URI=mongodb://${MONGO_USER:-beworkready}:${MONGO_PASSWORD:-secret}@mongodb:27017/beworkready_search?authSource=admin
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-beworkready}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-beworkready_jobs}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+    depends_on:
+      - rabbitmq
+      - mongodb
+      - postgres
+    networks:
+      - beworkready_net
+
+  ai-agent-service:
+    build: ./ai-agent-service
+    container_name: beworkready_ai
+    restart: unless-stopped
+    ports:
+      - '3004:3004'
+    environment:
+      - PORT=3004
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JOB_SEARCH_URL=http://job-search-service:3002
+      - JOB_POSTING_URL=http://job-posting-service:3001
+    networks:
+      - beworkready_net
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - REACT_APP_API_GATEWAY_URL=http://localhost:3000
+        - REACT_APP_FIREBASE_API_KEY=${REACT_APP_FIREBASE_API_KEY}
+        - REACT_APP_FIREBASE_AUTH_DOMAIN=${REACT_APP_FIREBASE_AUTH_DOMAIN}
+        - REACT_APP_FIREBASE_PROJECT_ID=${REACT_APP_FIREBASE_PROJECT_ID}
+    container_name: beworkready_frontend
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    networks:
+      - beworkready_net
+
+volumes:
+  postgres_data:
+  mongo_data:
+
+networks:
+  beworkready_net:
+    driver: bridge

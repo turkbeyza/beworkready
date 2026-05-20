@@ -55,14 +55,25 @@ async function getJob(req, res) {
   const result = await pool.query('SELECT * FROM jobs WHERE id = $1 AND is_active = TRUE', [id]);
   if (!result.rows.length) return res.status(404).json({ success: false, message: 'Job not found.' });
 
-  // Related jobs (same city or working_type)
+  // Related jobs — match by title similarity, same city, or same working_type
   const job = result.rows[0];
+  // Extract meaningful words from the title for similarity matching
+  const titleWords = (job.title || '').split(/\s+/).filter(w => w.length > 2);
+  let titleConditions = '';
+  const relatedValues = [id, job.city, job.working_type];
+  if (titleWords.length > 0) {
+    const likeClauses = titleWords.map((w, i) => {
+      relatedValues.push(`%${w}%`);
+      return `title ILIKE $${relatedValues.length}`;
+    });
+    titleConditions = `OR (${likeClauses.join(' OR ')})`;
+  }
   const related = await pool.query(
-    `SELECT id, title, company_name, city, working_type, created_at
+    `SELECT id, title, company_name, company_logo_url, city, working_type, salary_min, salary_max, currency, created_at, description
      FROM jobs WHERE is_active = TRUE AND id != $1
-       AND (city = $2 OR working_type = $3)
-     ORDER BY created_at DESC LIMIT 3`,
-    [id, job.city, job.working_type]
+       AND (city = $2 OR working_type = $3 ${titleConditions})
+     ORDER BY created_at DESC LIMIT 5`,
+    relatedValues
   );
 
   const payload = { ...job, related_jobs: related.rows };

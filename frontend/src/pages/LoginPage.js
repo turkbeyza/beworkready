@@ -28,7 +28,7 @@ export default function LoginPage() {
         await signInWithEmail(email, password);
         toast.success('Successfully logged in!');
       } else {
-        const userCredential = await signUpWithEmail(email, password);
+        await signUpWithEmail(email, password);
         // Save the role in the user's profile
         if (auth.currentUser) {
           await updateProfile(auth.currentUser, { displayName: role });
@@ -49,17 +49,17 @@ export default function LoginPage() {
         <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', textAlign: 'center' }}>
           {isLogin ? 'Sign in to post jobs, track applications, and view your search history.' : 'Register to get started on the platform.'}
         </p>
-        
+
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Email</label>
-            <input 
-              type="email" 
-              className="form-input" 
-              required 
+            <input
+              type="email"
+              className="form-input"
+              required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="you@example.com" 
+              placeholder="you@example.com"
             />
           </div>
 
@@ -80,13 +80,13 @@ export default function LoginPage() {
           )}
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label">Password</label>
-            <input 
-              type="password" 
-              className="form-input" 
-              required 
+            <input
+              type="password"
+              className="form-input"
+              required
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••" 
+              placeholder="••••••••"
             />
           </div>
           <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', justifyContent: 'center', marginTop: '1rem' }} disabled={loading}>
@@ -96,7 +96,7 @@ export default function LoginPage() {
 
         <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
           {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button 
+          <button
             type="button"
             onClick={() => setIsLogin(!isLogin)}
             style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }}

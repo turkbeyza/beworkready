@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getHistory, clearHistory, deleteHistoryItem } from '../services/api';
 import toast from 'react-hot-toast';
-import { Settings, User, History, Trash2, Timer, Bell, Shield, ArrowRight } from 'lucide-react';
+import { Settings, History, Trash2, Timer, Bell, ArrowRight } from 'lucide-react';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -17,7 +17,7 @@ export default function SettingsPage() {
       return;
     }
     fetchHistory();
-  }, [user]);
+  }, [user, navigate]);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -63,16 +63,16 @@ export default function SettingsPage() {
 
       {/* Grid Layout */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        
+
         {/* Profile Card */}
         <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', padding: '2rem' }}>
-          <div style={{ 
-            width: '60px', 
-            height: '60px', 
-            borderRadius: '50%', 
-            background: 'var(--border-accent)', 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: 'var(--border-accent)',
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
             fontSize: '1.5rem',
             fontWeight: 700,
@@ -113,9 +113,9 @@ export default function SettingsPage() {
               <History size={20} /> Search History
             </h3>
             {historyList.length > 0 && (
-              <button 
-                onClick={handleClearAll} 
-                className="btn btn-ghost btn-sm" 
+              <button
+                onClick={handleClearAll}
+                className="btn btn-ghost btn-sm"
                 style={{ color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}
               >
                 <Trash2 size={14} /> Clear All
@@ -140,7 +140,7 @@ export default function SettingsPage() {
                 if (s.workingType) {
                   const tl = s.workingType === 'fulltime' ? 'Full-time'
                     : s.workingType === 'parttime' ? 'Part-time'
-                    : s.workingType.charAt(0).toUpperCase() + s.workingType.slice(1);
+                      : s.workingType.charAt(0).toUpperCase() + s.workingType.slice(1);
                   parts.push(tl);
                 }
                 const displayText = parts.join(' – ');
@@ -151,25 +151,25 @@ export default function SettingsPage() {
                 if (s.workingType) params.append('working_type', s.workingType);
 
                 return (
-                  <div 
-                    key={s._id} 
-                    style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'center', 
-                      padding: '0.75rem 1rem', 
-                      background: 'var(--bg-elevated)', 
+                  <div
+                    key={s._id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.75rem 1rem',
+                      background: 'var(--bg-elevated)',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border)'
                     }}
                   >
-                    <Link 
-                      to={`/search?${params.toString()}`} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '0.5rem', 
-                        fontSize: '0.9rem', 
+                    <Link
+                      to={`/search?${params.toString()}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.9rem',
                         color: 'var(--text-primary)',
                         textDecoration: 'none'
                       }}
@@ -177,9 +177,9 @@ export default function SettingsPage() {
                       <Timer size={14} style={{ color: 'var(--text-muted)' }} />
                       <span>{displayText}</span>
                     </Link>
-                    <button 
-                      onClick={() => handleDeleteItem(s._id)} 
-                      className="btn btn-ghost btn-sm" 
+                    <button
+                      onClick={() => handleDeleteItem(s._id)}
+                      className="btn btn-ghost btn-sm"
                       style={{ color: 'var(--text-muted)', padding: '0.25rem' }}
                       title="Delete search record"
                     >

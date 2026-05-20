@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Timer, Box, X } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
 import JobCard from '../components/JobCard';
-import { getJobs, getHistory, deleteHistoryItem } from '../services/api';
+import { getJobs, getJobsByCity, getHistory, deleteHistoryItem } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function HomePage() {
@@ -42,16 +42,22 @@ export default function HomePage() {
 
         let jobsData = [];
         if (resolvedCity) {
-          const { data: cityJobRes } = await getJobs({ city: resolvedCity, limit: 6 });
-          jobsData = cityJobRes.data || [];
+          try {
+            const { data: cityJobRes } = await getJobsByCity(resolvedCity);
+            jobsData = cityJobRes.data || [];
+          } catch (e) {
+            console.error('City-based job fetch failed:', e);
+          }
         }
 
         if (jobsData.length >= 5) {
           setJobs(jobsData);
           setCityJobsFound(true);
         } else {
-          const { data: fallbackJobRes } = await getJobs({ limit: 6 });
-          setJobs(fallbackJobRes.data || []);
+          // Not enough jobs in user's city, show general postings
+          const { data: fallbackJobRes } = await getJobs({ limit: 8 });
+          const allJobs = fallbackJobRes.data || [];
+          setJobs(allJobs.slice(0, Math.max(6, allJobs.length)));
           setCityJobsFound(false);
         }
 

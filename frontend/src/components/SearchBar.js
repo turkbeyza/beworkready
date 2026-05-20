@@ -5,13 +5,13 @@ import { autocomplete } from '../services/api';
 
 export default function SearchBar({ initialTitle = '', initialCity = '', onSearch }) {
   const [title, setTitle] = useState(initialTitle);
-  const [city, setCity]   = useState(initialCity);
+  const [city, setCity] = useState(initialCity);
   const navigate = useNavigate();
 
   const [titleSuggestions, setTitleSuggestions] = useState([]);
-  const [citySuggestions, setCitySuggestions]   = useState([]);
+  const [citySuggestions, setCitySuggestions] = useState([]);
   const [showTitleDropdown, setShowTitleDropdown] = useState(false);
-  const [showCityDropdown, setShowCityDropdown]   = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
 
   // Set initial city from browser location if not provided
   useEffect(() => {
@@ -40,6 +40,7 @@ export default function SearchBar({ initialTitle = '', initialCity = '', onSearc
         );
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCity]);
 
   // Autocomplete for Title
@@ -52,7 +53,7 @@ export default function SearchBar({ initialTitle = '', initialCity = '', onSearc
       try {
         const { data } = await autocomplete(title, 'title');
         setTitleSuggestions(data.data || []);
-      } catch (e) {}
+      } catch (e) { }
     }, 300);
     return () => clearTimeout(timer);
   }, [title]);
@@ -67,7 +68,7 @@ export default function SearchBar({ initialTitle = '', initialCity = '', onSearc
       try {
         const { data } = await autocomplete(city, 'city');
         setCitySuggestions(data.data || []);
-      } catch (e) {}
+      } catch (e) { }
     }, 300);
     return () => clearTimeout(timer);
   }, [city]);
@@ -81,7 +82,7 @@ export default function SearchBar({ initialTitle = '', initialCity = '', onSearc
     } else {
       const params = new URLSearchParams();
       if (title) params.append('title', title);
-      if (city)  params.append('city', city);
+      if (city) params.append('city', city);
       navigate(`/search?${params.toString()}`);
     }
   };

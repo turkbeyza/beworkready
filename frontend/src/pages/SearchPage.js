@@ -350,8 +350,6 @@ export default function SearchPage() {
                     const value = Math.min(Number(e.target.value), sliderMax - 5000);
                     setSliderMin(value);
                   }}
-                  onMouseUp={() => applySalaryFilter(sliderMin, sliderMax)}
-                  onTouchEnd={() => applySalaryFilter(sliderMin, sliderMax)}
                 />
                 <input 
                   type="range" 
@@ -364,8 +362,6 @@ export default function SearchPage() {
                     const value = Math.max(Number(e.target.value), sliderMin + 5000);
                     setSliderMax(value);
                   }}
-                  onMouseUp={() => applySalaryFilter(sliderMin, sliderMax)}
-                  onTouchEnd={() => applySalaryFilter(sliderMin, sliderMax)}
                 />
               </div>
 

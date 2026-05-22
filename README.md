@@ -2,6 +2,9 @@
 
 A complete, production-ready job search platform built with microservices architecture.
 
+Youtube Video Link: 
+Url of the web-site: https://beworkready.vercel.app/
+
 ## Architecture
 
 The system is composed of the following services:

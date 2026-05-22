@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
 
 const searchSchema = new mongoose.Schema({
-  userId:    { type: String, required: true, index: true },
-  query:     { type: String, default: '' },
-  city:      { type: String },
-  country:   { type: String },
-  town:      { type: String },
+  userId:     { type: String, required: true, index: true },
+  userEmail:  { type: String, default: '' }, // stored for notification emails
+  query:      { type: String, default: '' },
+  city:       { type: String },
+  country:    { type: String },
+  town:       { type: String },
   workingType: { type: String },
-  timestamp: { type: Date, default: Date.now },
+  timestamp:  { type: Date, default: Date.now },
 });
 
 // TTL: auto-delete search history older than 90 days

@@ -46,7 +46,8 @@ async function listJobs(req, res) {
 // ── Get Single Job ────────────────────────────────────────────────────────────
 async function getJob(req, res) {
   const { id } = req.params;
-  const cacheKey = `jobs:single:${id}`;
+  const uid = req.headers['x-user-uid'] || 'public';
+  const cacheKey = `jobs:single:${id}:${uid}`;
   const redis = getRedis();
   const cached = await redis.get(cacheKey);
   if (cached) return res.json({ success: true, cached: true, data: JSON.parse(cached) });
@@ -55,9 +56,16 @@ async function getJob(req, res) {
   const result = await pool.query('SELECT * FROM jobs WHERE id = $1 AND is_active = TRUE', [id]);
   if (!result.rows.length) return res.status(404).json({ success: false, message: 'Job not found.' });
 
-  // Related jobs — match by title similarity, same city, or same working_type
   const job = result.rows[0];
-  // Extract meaningful words from the title for similarity matching
+
+  // Check if job is saved by the current user
+  let isSaved = false;
+  if (uid !== 'public') {
+    const savedCheck = await pool.query('SELECT 1 FROM saved_jobs WHERE job_id = $1 AND user_uid = $2', [id, uid]);
+    isSaved = savedCheck.rows.length > 0;
+  }
+
+  // Related jobs — match by title similarity, same city, or same working_type
   const titleWords = (job.title || '').split(/\s+/).filter(w => w.length > 2);
   let titleConditions = '';
   const relatedValues = [id, job.city, job.working_type];
@@ -68,17 +76,121 @@ async function getJob(req, res) {
     });
     titleConditions = `OR (${likeClauses.join(' OR ')})`;
   }
+
+  // Prioritize same city first, then title keyword matches, then recency
+  let scoreOrder = `ORDER BY (CASE WHEN LOWER(city) = LOWER($2) THEN 1 ELSE 0 END) DESC`;
+  if (titleWords.length > 0) {
+    const titleCheck = titleWords.map((w, i) => {
+      return `(CASE WHEN title ILIKE $${4 + i} THEN 1 ELSE 0 END)`;
+    }).join(' + ');
+    scoreOrder = `ORDER BY (CASE WHEN LOWER(city) = LOWER($2) THEN 1 ELSE 0 END) DESC, (${titleCheck}) DESC, created_at DESC`;
+  } else {
+    scoreOrder = `ORDER BY (CASE WHEN LOWER(city) = LOWER($2) THEN 1 ELSE 0 END) DESC, created_at DESC`;
+  }
+
   const related = await pool.query(
     `SELECT id, title, company_name, company_logo_url, city, working_type, salary_min, salary_max, currency, created_at, description
      FROM jobs WHERE is_active = TRUE AND id != $1
        AND (city = $2 OR working_type = $3 ${titleConditions})
-     ORDER BY created_at DESC LIMIT 5`,
+     ${scoreOrder} LIMIT 5`,
     relatedValues
   );
 
-  const payload = { ...job, related_jobs: related.rows };
+  const payload = { ...job, is_saved: isSaved, related_jobs: related.rows };
   await redis.setEx(cacheKey, CACHE_TTL, JSON.stringify(payload));
   res.json({ success: true, cached: false, data: payload });
+}
+
+// ── Save Job ──────────────────────────────────────────────────────────────────
+async function saveJob(req, res) {
+  const { id } = req.params;
+  const uid = req.headers['x-user-uid'];
+  if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+  const pool = getPool();
+  try {
+    // Verify job exists
+    const jobCheck = await pool.query('SELECT 1 FROM jobs WHERE id = $1 AND is_active = TRUE', [id]);
+    if (!jobCheck.rows.length) return res.status(404).json({ success: false, message: 'Job not found.' });
+
+    await pool.query(
+      'INSERT INTO saved_jobs (job_id, user_uid) VALUES ($1, $2) ON CONFLICT (user_uid, job_id) DO NOTHING',
+      [id, uid]
+    );
+
+    // Invalidate user specific details cache
+    const redis = getRedis();
+    await redis.del(`jobs:single:${id}:${uid}`);
+
+    res.json({ success: true, message: 'Job saved successfully' });
+  } catch (err) {
+    logger.error(`Error saving job: ${err.message}`);
+    res.status(500).json({ success: false, message: 'Failed to save job.' });
+  }
+}
+
+// ── Unsave Job ────────────────────────────────────────────────────────────────
+async function unsaveJob(req, res) {
+  const { id } = req.params;
+  const uid = req.headers['x-user-uid'];
+  if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+  const pool = getPool();
+  try {
+    await pool.query('DELETE FROM saved_jobs WHERE job_id = $1 AND user_uid = $2', [id, uid]);
+
+    // Invalidate user specific details cache
+    const redis = getRedis();
+    await redis.del(`jobs:single:${id}:${uid}`);
+
+    res.json({ success: true, message: 'Job unsaved successfully' });
+  } catch (err) {
+    logger.error(`Error unsaving job: ${err.message}`);
+    res.status(500).json({ success: false, message: 'Failed to unsave job.' });
+  }
+}
+
+// ── Get Saved Jobs ────────────────────────────────────────────────────────────
+async function getSavedJobs(req, res) {
+  const uid = req.headers['x-user-uid'];
+  if (!uid) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+  const pool = getPool();
+  try {
+    const result = await pool.query(
+      `SELECT j.id, j.title, j.company_name, j.company_logo_url, j.city, j.country, j.town, j.working_type, j.salary_min, j.salary_max, j.currency, j.created_at
+       FROM jobs j
+       JOIN saved_jobs s ON j.id = s.job_id
+       WHERE s.user_uid = $1 AND j.is_active = TRUE
+       ORDER BY s.saved_at DESC`,
+      [uid]
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (err) {
+    logger.error(`Error getting saved jobs: ${err.message}`);
+    res.status(500).json({ success: false, message: 'Failed to load saved jobs.' });
+  }
+}
+
+
+// Helper to invalidate all job list and search caches
+async function clearAllJobCaches(redis, jobId) {
+  try {
+    if (jobId) {
+      await redis.del(`jobs:single:${jobId}`);
+    }
+    // Retrieve and delete wildcard keys
+    const jobKeys = await redis.keys('jobs:*');
+    const searchKeys = await redis.keys('search:*');
+    const allKeys = [...jobKeys, ...searchKeys];
+    if (allKeys.length > 0) {
+      await redis.del(allKeys);
+    }
+    logger.info(`Invalidated ${allKeys.length} Redis cache keys for job actions`);
+  } catch (err) {
+    logger.error(`Failed to clear job caches: ${err.message}`);
+  }
 }
 
 // ── Create Job ────────────────────────────────────────────────────────────────
@@ -99,12 +211,9 @@ async function createJob(req, res) {
 
   const job = result.rows[0];
 
-  // Invalidate cache natively instead of wildcard
+  // Invalidate cache
   const redis = getRedis();
-  const keys = await redis.keys('jobs:*');
-  if (keys.length > 0) {
-    await redis.del(keys);
-  }
+  await clearAllJobCaches(redis, null);
 
   // Publish to RabbitMQ
   publish('job.new', job);
@@ -142,7 +251,7 @@ async function updateJob(req, res) {
 
   // Invalidate cache
   const redis = getRedis();
-  await redis.del(`jobs:single:${id}`);
+  await clearAllJobCaches(redis, id);
 
   res.json({ success: true, data: result.rows[0] });
 }
@@ -150,7 +259,7 @@ async function updateJob(req, res) {
 // ── Get Jobs by City (for Home Page) ─────────────────────────────────────────
 async function getJobsByCity(req, res) {
   const { city } = req.params;
-  const limit = 5;
+  const limit = 10;
   const cacheKey = `jobs:city:${city}`;
   const redis = getRedis();
   const cached = await redis.get(cacheKey);
@@ -158,7 +267,7 @@ async function getJobsByCity(req, res) {
 
   const pool = getPool();
   const result = await pool.query(
-    `SELECT id, title, company_name, city, working_type, salary_min, salary_max, currency, created_at
+    `SELECT id, title, company_name, company_logo_url, city, working_type, salary_min, salary_max, currency, created_at
      FROM jobs WHERE is_active = TRUE AND LOWER(city) = LOWER($1) ORDER BY created_at DESC LIMIT $2`,
     [city, limit]
   );
@@ -176,7 +285,8 @@ async function getMyPostedJobs(req, res) {
   
   // Get all jobs posted by this company
   const jobsRes = await pool.query(
-    `SELECT id, title, city, working_type, is_active, application_count, created_at 
+    `SELECT id, title, description, city, country, town, working_type, company_name, company_logo_url,
+            salary_min, salary_max, currency, is_active, application_count, created_at 
      FROM jobs WHERE posted_by_uid = $1 ORDER BY created_at DESC`,
     [uid]
   );
@@ -217,14 +327,11 @@ async function deleteJob(req, res) {
     return res.status(404).json({ success: false, message: 'Job not found or unauthorized.' });
   }
 
-  // Invalidate cache natively instead of wildcard
+  // Invalidate cache
   const redis = getRedis();
-  const keys = await redis.keys('jobs:*');
-  if (keys.length > 0) {
-    await redis.del(keys);
-  }
+  await clearAllJobCaches(redis, id);
 
   res.json({ success: true, message: 'Job deleted successfully' });
 }
 
-module.exports = { listJobs, getJob, createJob, updateJob, getJobsByCity, getMyPostedJobs, deleteJob };
+module.exports = { listJobs, getJob, createJob, updateJob, getJobsByCity, getMyPostedJobs, deleteJob, saveJob, unsaveJob, getSavedJobs };

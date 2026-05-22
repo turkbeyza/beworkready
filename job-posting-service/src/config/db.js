@@ -42,12 +42,21 @@ async function connectDB() {
       applied_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS saved_jobs (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      job_id     UUID         REFERENCES jobs(id) ON DELETE CASCADE,
+      user_uid   VARCHAR(255) NOT NULL,
+      saved_at   TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_uid, job_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_jobs_city        ON jobs (city);
     CREATE INDEX IF NOT EXISTS idx_jobs_country     ON jobs (country);
     CREATE INDEX IF NOT EXISTS idx_jobs_town        ON jobs (town);
     CREATE INDEX IF NOT EXISTS idx_jobs_working_type ON jobs (working_type);
     CREATE INDEX IF NOT EXISTS idx_jobs_is_active   ON jobs (is_active);
     CREATE INDEX IF NOT EXISTS idx_jobs_created_at  ON jobs (created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_saved_jobs_user_uid ON saved_jobs (user_uid);
   `);
   logger.info('Database schema ready');
 }

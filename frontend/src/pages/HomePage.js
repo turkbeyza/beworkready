@@ -40,25 +40,37 @@ export default function HomePage() {
           });
         }
 
-        let jobsData = [];
+        let cityJobs = [];
         if (resolvedCity) {
           try {
             const { data: cityJobRes } = await getJobsByCity(resolvedCity);
-            jobsData = cityJobRes.data || [];
+            cityJobs = cityJobRes.data || [];
           } catch (e) {
             console.error('City-based job fetch failed:', e);
           }
         }
 
-        if (jobsData.length >= 5) {
-          setJobs(jobsData);
-          setCityJobsFound(true);
-        } else {
-          // Not enough jobs in user's city, show general postings
-          const { data: fallbackJobRes } = await getJobs({ limit: 8 });
-          const allJobs = fallbackJobRes.data || [];
-          setJobs(allJobs.slice(0, Math.max(6, allJobs.length)));
-          setCityJobsFound(false);
+        // Fetch general jobs and merge them, keeping exactly 6 jobs
+        try {
+          const { data: fallbackJobRes } = await getJobs({ limit: 12 });
+          const fallbackJobs = fallbackJobRes.data || [];
+          
+          // Deduplicate to avoid showing same job twice
+          const cityJobIds = new Set(cityJobs.map(j => j.id));
+          const uniqueFallback = fallbackJobs.filter(j => !cityJobIds.has(j.id));
+
+          // Merge: start with city jobs, then fill up to 6 with fallback jobs
+          const merged = [...cityJobs];
+          while (merged.length < 6 && uniqueFallback.length > 0) {
+            merged.push(uniqueFallback.shift());
+          }
+
+          setJobs(merged.slice(0, 6));
+          setCityJobsFound(cityJobs.length > 0);
+        } catch (fallbackErr) {
+          console.error('Fallback job fetch failed:', fallbackErr);
+          setJobs(cityJobs.slice(0, 6));
+          setCityJobsFound(cityJobs.length > 0);
         }
 
         if (user) {
@@ -207,11 +219,32 @@ export default function HomePage() {
         {loading ? (
           <div className="spinner" />
         ) : jobs.length > 0 ? (
-          <div className="grid-2">
-            {jobs.map(job => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
+          <>
+            <div className="grid-2">
+              {jobs.map(job => (
+                <JobCard key={job.id} job={job} />
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2.5rem' }}>
+              <Link 
+                to={cityJobsFound && detectedCity ? `/search?city=${encodeURIComponent(detectedCity)}` : '/search'} 
+                className="btn btn-primary"
+                style={{ 
+                  padding: '0.8rem 2.5rem', 
+                  borderRadius: '30px', 
+                  fontSize: '0.95rem', 
+                  fontWeight: 600,
+                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                Explore More Jobs
+              </Link>
+            </div>
+          </>
         ) : (
           <div className="empty-state">
             <Box size={40} style={{ margin: '0 auto 1rem', opacity: 0.5 }} />

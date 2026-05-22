@@ -8,6 +8,7 @@ import AIAgentPage from './pages/AIAgentPage';
 import LoginPage  from './pages/LoginPage';
 import AlertsPage from './pages/AlertsPage';
 import SettingsPage from './pages/SettingsPage';
+import SavedJobsPage from './pages/SavedJobsPage';
 import AIFloatingWidget from './components/AIFloatingWidget';
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
         <Route path="/ai"        element={<AIAgentPage />} />
         <Route path="/login"     element={<LoginPage />} />
         <Route path="/alerts"    element={<AlertsPage />} />
+        <Route path="/saved"     element={<SavedJobsPage />} />
         <Route path="/settings"  element={<SettingsPage />} />
       </Routes>
       <AIFloatingWidget />

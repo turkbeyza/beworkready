@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SlidersHorizontal, Search as SearchIcon, Bell, X } from 'lucide-react';
 import SearchBar from '../components/SearchBar';
@@ -56,14 +56,67 @@ export default function SearchPage() {
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [townSuggestions, setTownSuggestions] = useState([]);
 
-  // Sync inputs with query param changes
+  // Browser-detected city (used as default city filter when URL has none)
+  const [geoCity, setGeoCity] = useState('');
+  const [geoCityLoading, setGeoCityLoading] = useState(false);
+
+  // Detect user's city from browser geolocation once on mount
+  // Only stores geoCity for display/suggestion — does NOT pre-fill cityInput
+  // (the sync useEffect owns cityInput state, keeping it in sync with the URL)
+  useEffect(() => {
+    setGeoCityLoading(true);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const r = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`
+            );
+            const d = await r.json();
+            const detected = d.city || d.principalSubdivision || '';
+            if (detected) {
+              setGeoCity(detected);
+              // If URL has no city, pre-fill AND apply the geo city automatically
+              if (!currentCity) {
+                setCityInput(detected);
+                // We do NOT call applyTextFilter here — user can apply manually
+                // This just pre-fills the input as a convenience
+              }
+            }
+          } catch (e) { }
+          setGeoCityLoading(false);
+        },
+        () => setGeoCityLoading(false)
+      );
+    } else {
+      setGeoCityLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
+
+  // Sync inputs with URL param changes.
+  // Uses a ref to track the *previous* value of currentCity so we can distinguish:
+  //  - Initial mount (prevCity == undefined): skip cityInput update so geo pre-fill survives
+  //  - Explicit URL change (prevCity != currentCity): always sync (including clear to '')
+  const prevCityRef = useRef(undefined);
   useEffect(() => {
     setCountryInput(currentCountry);
-    setCityInput(currentCity);
+    const prevCity = prevCityRef.current;
+    if (prevCity !== undefined) {
+      // URL city param changed explicitly (user applied/cleared a filter) → sync
+      setCityInput(currentCity);
+    }
+    // else: initial mount — leave cityInput alone so geo pre-fill isn't wiped
+    prevCityRef.current = currentCity;
     setTownInput(currentTown);
     setSliderMin(Number(currentMinSalary));
     setSliderMax(Number(currentMaxSalary));
   }, [currentCountry, currentCity, currentTown, currentMinSalary, currentMaxSalary]);
+
+
+
 
   // City and Town Autocomplete fetchers
   useEffect(() => {
@@ -103,6 +156,7 @@ export default function SearchPage() {
         });
         setJobs(data.data || []);
         setTotal(data.total || 0);
+        window.scrollTo(0, 0);
       } catch (err) {
         console.error('Search failed:', err);
       } finally {
@@ -256,31 +310,52 @@ export default function SearchPage() {
               </div>
             </div>
 
-            {/* City Input with suggestions */}
+            {/* City Input with suggestions + geolocation badge */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label" style={{ marginBottom: '0.4rem' }}>City</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  placeholder="e.g. Izmir"
-                  value={cityInput}
-                  list="city-options"
-                  onChange={e => setCityInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && applyTextFilter('city', cityInput)}
-                />
+              <label className="form-label" style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                City
+                {geoCityLoading && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>📡 detecting...</span>}
+                {!geoCityLoading && geoCity && !currentCity && cityInput === geoCity && (
+                  <span style={{ fontSize: '0.7rem', background: 'rgba(37,99,235,0.12)', color: 'var(--primary)', padding: '1px 6px', borderRadius: '999px', fontWeight: 600 }}>
+                    📍 Your location
+                  </span>
+                )}
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem', position: 'relative' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Izmir (leave empty for all)"
+                    value={cityInput}
+                    list="city-options"
+                    style={{ paddingRight: cityInput ? '2rem' : undefined }}
+                    onChange={e => setCityInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && applyTextFilter('city', cityInput)}
+                  />
+                  {cityInput && (
+                    <button
+                      onClick={() => { setCityInput(''); applyTextFilter('city', ''); }}
+                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}
+                      title="Clear city filter"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
                 <datalist id="city-options">
                   {citySuggestions.map((c, i) => <option key={i} value={c} />)}
                 </datalist>
-                <button 
-                  className="btn btn-secondary" 
-                  style={{ padding: '0 0.75rem' }} 
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '0 0.75rem' }}
                   onClick={() => applyTextFilter('city', cityInput)}
                 >
                   Apply
                 </button>
               </div>
             </div>
+
 
             {/* Town Input with suggestions */}
             <div className="form-group" style={{ marginBottom: 0 }}>

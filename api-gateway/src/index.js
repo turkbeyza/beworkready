@@ -53,17 +53,26 @@ const proxyOpts = (target) => ({
 
 // ── Protected Routes (require Firebase token) ─────────────────────────────────
 const protectedJobRoutes = [
-  { method: 'POST', path: '/api/v1/jobs' },
-  { method: 'PUT',  path: '/api/v1/jobs' },
-  { method: 'POST', path: '/api/v1/apply' },
+  { method: 'POST',   path: /^\/api\/v1\/jobs(\/)?$/ },
+  { method: 'PUT',    path: /^\/api\/v1\/jobs\/.+/ },
+  { method: 'DELETE', path: /^\/api\/v1\/jobs\/.+/ },
+  { method: 'GET',    path: /^\/api\/v1\/jobs\/saved\/all$/ },
+  { method: 'GET',    path: /^\/api\/v1\/jobs\/company\/me$/ },
+  { method: 'POST',   path: /^\/api\/v1\/apply/ },
 ];
 
 const authGuard = (req, res, next) => {
-  const isProtected = protectedJobRoutes.some(r =>
-    req.method === r.method && req.path.startsWith(r.path)
-  );
+  const isProtected = protectedJobRoutes.some(r => {
+    const methodMatch = req.method === r.method;
+    if (!methodMatch) return false;
+    if (r.path instanceof RegExp) {
+      return r.path.test(req.path);
+    }
+    return req.path.startsWith(r.path);
+  });
+
   if (isProtected) return verifyFirebaseToken(req, res, next);
-  return next();
+  return tryVerifyFirebaseToken(req, res, next);
 };
 
 // ── Proxy Routes ──────────────────────────────────────────────────────────────

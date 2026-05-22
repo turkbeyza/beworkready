@@ -23,6 +23,21 @@ app.get('/health', (_, res) => res.json({ status: 'ok', service: 'notification-s
 app.post('/api/v1/notifications/subscribe', require('./routes/subscribe'));
 app.get('/api/v1/notifications/alerts', require('./routes/alerts'));
 app.delete('/api/v1/notifications/alerts/:id', require('./routes/deleteAlert'));
+app.patch('/api/v1/notifications/alerts/:id/toggle', async (req, res) => {
+  const Subscription = require('./models/Subscription');
+  const email = req.headers['x-user-email'];
+  const { id } = req.params;
+  if (!email) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  try {
+    const sub = await Subscription.findOne({ _id: id, email });
+    if (!sub) return res.status(404).json({ success: false, message: 'Alert not found' });
+    sub.is_active = !sub.is_active;
+    await sub.save();
+    res.json({ success: true, is_active: sub.is_active, message: sub.is_active ? 'Alert activated' : 'Alert paused' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 app.use((err, req, res, _next) => {
   logger.error(err.stack);

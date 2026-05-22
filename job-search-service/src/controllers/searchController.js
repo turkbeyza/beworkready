@@ -11,7 +11,8 @@ const CACHE_TTL = 60; // 1 minute for search results
 async function searchJobs(req, res) {
   const { title, city, country, town, working_type, salary_min, salary_max, page = 1, limit = 10 } = req.query;
   const offset = (Number(page) - 1) * Number(limit);
-  const userId = req.headers['x-user-uid'];
+  const userId    = req.headers['x-user-uid'];
+  const userEmail = req.headers['x-user-email'] || '';
 
   const cacheKey = `search:${JSON.stringify(req.query)}`;
   const redis = getRedis();
@@ -20,7 +21,7 @@ async function searchJobs(req, res) {
     if (cached) {
       // Still save history even for cached results
       if (userId && (title || city)) {
-        Search.create({ userId, query: title || '', city, country, town, workingType: working_type }).catch(() => {});
+        Search.create({ userId, userEmail, query: title || '', city, country, town, workingType: working_type }).catch(() => {});
       }
       return res.json({ success: true, cached: true, ...JSON.parse(cached) });
     }
@@ -89,7 +90,7 @@ async function searchJobs(req, res) {
 
   // Save search history to MongoDB (non-blocking)
   if (userId && (title || city)) {
-    Search.create({ userId, query: title || '', city: city || '', country, town, workingType: working_type }).catch(e =>
+    Search.create({ userId, userEmail, query: title || '', city: city || '', country, town, workingType: working_type }).catch(e =>
       logger.warn(`Could not save search history: ${e.message}`)
     );
   }

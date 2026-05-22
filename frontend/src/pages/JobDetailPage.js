@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Compass, Timer, Globe, Coins, Box, SendHorizonal, RefreshCw } from 'lucide-react';
+import { Compass, Timer, Globe, Coins, Box, SendHorizonal, RefreshCw, Bookmark } from 'lucide-react';
 import toast from 'react-hot-toast';
 import JobCard from '../components/JobCard';
-import { getJobDetail, applyToJob } from '../services/api';
+import { getJobDetail, applyToJob, saveJob, unsaveJob } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 export default function JobDetailPage() {
@@ -12,6 +12,7 @@ export default function JobDetailPage() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSaved, setIsSaved] = useState(false);
   
   const [showApply, setShowApply] = useState(false);
   const [coverNote, setCoverNote] = useState('');
@@ -23,6 +24,7 @@ export default function JobDetailPage() {
       try {
         const res = await getJobDetail(id);
         setData(res.data.data);
+        setIsSaved(res.data.data.is_saved || false);
       } catch (err) {
         toast.error('Job not found.');
       } finally {
@@ -40,6 +42,27 @@ export default function JobDetailPage() {
       return;
     }
     setShowApply(true);
+  };
+
+  const handleSaveToggle = async () => {
+    if (!user) {
+      toast.error('Please sign in to save jobs.');
+      navigate('/login');
+      return;
+    }
+    try {
+      if (isSaved) {
+        await unsaveJob(data.id);
+        toast.success('Job removed from saved list.');
+        setIsSaved(false);
+      } else {
+        await saveJob(data.id);
+        toast.success('Job saved successfully!');
+        setIsSaved(true);
+      }
+    } catch (err) {
+      toast.error('Failed to update saved status.');
+    }
   };
 
   const submitApplication = async (e) => {
@@ -87,9 +110,28 @@ export default function JobDetailPage() {
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '1rem' }}>
-          <button className="btn btn-primary" onClick={handleApplyClick} disabled={showApply}>
-            <SendHorizonal size={16} /> Apply Now
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button 
+              className="btn btn-ghost" 
+              onClick={handleSaveToggle}
+              style={{ 
+                padding: '0.55rem 1rem', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                color: isSaved ? 'var(--primary)' : 'var(--text-secondary)'
+              }}
+              title={isSaved ? "Unsave Job" : "Save Job"}
+            >
+              <Bookmark size={16} fill={isSaved ? "var(--primary)" : "none"} />
+              {isSaved ? 'Saved' : 'Save'}
+            </button>
+            <button className="btn btn-primary" onClick={handleApplyClick} disabled={showApply}>
+              <SendHorizonal size={16} /> Apply Now
+            </button>
+          </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
             <span><Timer size={12} style={{marginRight:4}}/> Posted: {new Date(data.created_at).toLocaleDateString('en-US')}</span>
             {wasUpdated && (

@@ -28,9 +28,10 @@ export default function SearchBar({ initialTitle = '', initialCity = '', onSearc
               const detectedCity = data.city || data.principalSubdivision || '';
               if (detectedCity) {
                 setCity(detectedCity);
-                if (onSearch && !title) {
-                  onSearch({ title, city: detectedCity });
-                }
+                // NOTE: Do NOT auto-trigger onSearch here.
+                // We just pre-fill the input. The user decides when to search.
+                // Auto-triggering causes a bug: clearing the city filter re-triggers geo
+                // and puts the city back into the URL, making it impossible to clear.
               }
             } catch (e) {
               console.error('Failed to resolve city from coords', e);
@@ -42,6 +43,7 @@ export default function SearchBar({ initialTitle = '', initialCity = '', onSearc
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCity]);
+
 
   // Autocomplete for Title
   useEffect(() => {

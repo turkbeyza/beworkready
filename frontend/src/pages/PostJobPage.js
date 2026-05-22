@@ -47,10 +47,11 @@ export default function PostJobPage() {
     if (!window.confirm('Are you sure you want to delete this job posting?')) return;
     try {
       await deleteJob(id);
-      toast.success('Job deleted successfully');
+      toast.success('Job deleted successfully!');
       fetchMyJobs();
     } catch (err) {
-      toast.error('Failed to delete job');
+      const msg = err.response?.data?.message || 'Failed to delete job. Please try again.';
+      toast.error(msg);
     }
   };
 

@@ -21,10 +21,14 @@ export const getJobsByCity   = (city)       => api.get(`/api/v1/jobs/city/${city
 export const createJob       = (data)       => api.post('/api/v1/jobs', data);
 export const updateJob       = (id, data)   => api.put(`/api/v1/jobs/${id}`, data);
 export const deleteJob       = (id)         => api.delete(`/api/v1/jobs/${id}`);
+export const saveJob         = (id)         => api.post(`/api/v1/jobs/${id}/save`);
+export const unsaveJob       = (id)         => api.delete(`/api/v1/jobs/${id}/unsave`);
+export const getSavedJobs    = ()           => api.get('/api/v1/jobs/saved/all');
 export const applyToJob      = (data)       => api.post('/api/v1/apply', data);
 export const createJobAlert  = (data)       => api.post('/api/v1/notifications/subscribe', data);
 export const getMyAlerts     = ()           => api.get('/api/v1/notifications/alerts');
 export const deleteAlert     = (id)         => api.delete(`/api/v1/notifications/alerts/${id}`);
+export const toggleAlert     = (id)         => api.patch(`/api/v1/notifications/alerts/${id}/toggle`);
 
 // ── Search ───────────────────────────────────────────────────────────────────
 export const searchJobs      = (params)     => api.get('/api/v1/search', { params });

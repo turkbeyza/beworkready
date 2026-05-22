@@ -2,7 +2,7 @@
 
 A complete, production-ready job search platform built with microservices architecture.
 
-Youtube Video Link: 
+Youtube Video Link:https://youtu.be/8L7dxfgWWhc
 
 ## 🌐 Live Deployment
 
@@ -19,6 +19,36 @@ https://beworkready-gateway.onrender.com
 - Notification Service: https://beworkready-notification-service.onrender.com
 - AI Agent Service: https://beworkready-ai-agent-service.onrender.com
 
+## 🩺 Service Health Checks
+
+All microservices expose a `/health` endpoint for monitoring and deployment verification.
+
+You can use these endpoints to verify system availability:
+
+- API Gateway  
+  https://beworkready-gateway.onrender.com/health
+
+- Job Posting Service  
+  https://beworkready-job-posting-service.onrender.com/health
+
+- Job Search Service  
+  https://beworkready-job-search-service.onrender.com/health
+
+- Notification Service  
+  https://beworkready-notification-service.onrender.com/health
+
+- AI Agent Service  
+  https://beworkready-ai-agent-service.onrender.com/health
+
+  ## 🚀 Features
+
+- Job search with filters and autocomplete
+- AI-powered job assistant
+- User search history tracking
+- Job alerts and notifications
+- Redis caching for performance
+- RabbitMQ event-driven architecture
+- Firebase authentication
 ## Architecture
 
 The system is composed of the following services:

@@ -5,6 +5,16 @@ A complete, production-ready job search platform built with microservices archit
 Youtube Video Link: 
 Url of the web-site: https://beworkready.vercel.app/
 
+Backend (microservices):
+Notification service: https://beworkready-notification-service.onrender.com
+AI Agent service: https://beworkready-ai-agent-service.onrender.com
+Job posting service: https://beworkready-job-posting-service.onrender.com
+Job search service: https://beworkready-job-search-service.onrender.com
+
+Gateway: https://beworkready-gateway.onrender.com
+
+Frontend: https://beworkready.vercel.app/
+
 ## Architecture
 
 The system is composed of the following services:

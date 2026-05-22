@@ -56,14 +56,17 @@ export default function SearchPage() {
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [townSuggestions, setTownSuggestions] = useState([]);
 
-  // Browser-detected city (used as default city filter when URL has none)
+  // Browser-detected city
   const [geoCity, setGeoCity] = useState('');
   const [geoCityLoading, setGeoCityLoading] = useState(false);
+  // Track if user explicitly cleared the city so geo won't re-fill it
+  const userClearedCityRef = useRef(false);
 
-  // Detect user's city from browser geolocation once on mount
-  // Only stores geoCity for display/suggestion — does NOT pre-fill cityInput
-  // (the sync useEffect owns cityInput state, keeping it in sync with the URL)
+  // Detect city from geolocation once on mount.
+  // If no city is in the URL yet, auto-apply the geo city to URL params so the ✕ button can remove it.
   useEffect(() => {
+    // If URL already has a city, don't override it with geo
+    if (currentCity) return;
     setGeoCityLoading(true);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -74,16 +77,16 @@ export default function SearchPage() {
             );
             const d = await r.json();
             const detected = d.city || d.principalSubdivision || '';
-            if (detected) {
+            if (detected && !userClearedCityRef.current) {
               setGeoCity(detected);
-              // If URL has no city, pre-fill AND apply the geo city automatically
-              if (!currentCity) {
-                setCityInput(detected);
-                // We do NOT call applyTextFilter here — user can apply manually
-                // This just pre-fills the input as a convenience
-              }
+              setCityInput(detected);
+              // Auto-apply to URL so the ✕ button can clear it properly
+              const next = new URLSearchParams(searchParams);
+              next.set('city', detected);
+              next.set('page', '1');
+              setSearchParams(next, { replace: true });
             }
-          } catch (e) { }
+          } catch (e) {}
           setGeoCityLoading(false);
         },
         () => setGeoCityLoading(false)
@@ -94,26 +97,24 @@ export default function SearchPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-
-
-  // Sync inputs with URL param changes.
-  // Uses a ref to track the *previous* value of currentCity so we can distinguish:
-  //  - Initial mount (prevCity == undefined): skip cityInput update so geo pre-fill survives
-  //  - Explicit URL change (prevCity != currentCity): always sync (including clear to '')
+  // Sync filter inputs with URL param changes
   const prevCityRef = useRef(undefined);
   useEffect(() => {
     setCountryInput(currentCountry);
     const prevCity = prevCityRef.current;
     if (prevCity !== undefined) {
-      // URL city param changed explicitly (user applied/cleared a filter) → sync
       setCityInput(currentCity);
+      // If city was cleared (went from something to ''), mark that user cleared it
+      if (prevCity !== '' && currentCity === '') {
+        userClearedCityRef.current = true;
+      }
     }
-    // else: initial mount — leave cityInput alone so geo pre-fill isn't wiped
     prevCityRef.current = currentCity;
     setTownInput(currentTown);
     setSliderMin(Number(currentMinSalary));
     setSliderMax(Number(currentMaxSalary));
   }, [currentCountry, currentCity, currentTown, currentMinSalary, currentMaxSalary]);
+
 
 
 
@@ -315,8 +316,8 @@ export default function SearchPage() {
               <label className="form-label" style={{ marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 City
                 {geoCityLoading && <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>📡 detecting...</span>}
-                {!geoCityLoading && geoCity && !currentCity && cityInput === geoCity && (
-                  <span style={{ fontSize: '0.7rem', background: 'rgba(37,99,235,0.12)', color: 'var(--primary)', padding: '1px 6px', borderRadius: '999px', fontWeight: 600 }}>
+                {!geoCityLoading && geoCity && currentCity === geoCity && (
+                  <span style={{ fontSize: '0.7rem', background: 'rgba(37,99,235,0.12)', color: 'var(--primary)', padding: '1px 8px', borderRadius: '999px', fontWeight: 600 }}>
                     📍 Your location
                   </span>
                 )}
@@ -326,18 +327,28 @@ export default function SearchPage() {
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="e.g. Izmir (leave empty for all)"
+                    placeholder="Leave empty to see all cities"
                     value={cityInput}
                     list="city-options"
-                    style={{ paddingRight: cityInput ? '2rem' : undefined }}
+                    style={{ paddingRight: cityInput ? '2.2rem' : undefined }}
                     onChange={e => setCityInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && applyTextFilter('city', cityInput)}
                   />
                   {cityInput && (
                     <button
+                      type="button"
                       onClick={() => { setCityInput(''); applyTextFilter('city', ''); }}
-                      style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'flex', alignItems: 'center' }}
-                      title="Clear city filter"
+                      style={{
+                        position: 'absolute', right: '0.5rem', top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'var(--bg-elevated)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '50%',
+                        width: '20px', height: '20px',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer', color: 'var(--text-muted)', padding: 0,
+                      }}
+                      title="Clear city — show all locations"
                     >
                       ✕
                     </button>
@@ -355,6 +366,7 @@ export default function SearchPage() {
                 </button>
               </div>
             </div>
+
 
 
             {/* Town Input with suggestions */}

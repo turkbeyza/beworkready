@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSavedJobs } from '../services/api';
 import JobCard from '../components/JobCard';
-import { Bookmark, Box, ArrowRight } from 'lucide-react';
+import { Bookmark, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SavedJobsPage() {

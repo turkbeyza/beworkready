@@ -1,149 +1,193 @@
-# Be Work Ready - Microservices Job Platform
+# BeWorkReady — Microservices Job Search Platform
 
-A complete, production-ready job search platform built with microservices architecture.
+A complete, production-ready job search platform built with a microservices architecture. Users can search for jobs, receive location-based recommendations, set up job alerts, save favourites, and get career guidance from an AI assistant.
 
-Youtube Video Link:https://youtu.be/8L7dxfgWWhc
+---
 
 ## 🌐 Live Deployment
 
-### Frontend
-https://beworkready.vercel.app/
+| Service | URL |
+|---|---|
+| **Frontend** | https://beworkready.vercel.app/ |
+| **API Gateway** | https://beworkready-gateway.onrender.com |
+| **Job Posting Service** | https://beworkready-job-posting-service.onrender.com |
+| **Job Search Service** | https://beworkready-job-search-service.onrender.com |
+| **Notification Service** | https://beworkready-notification-service.onrender.com |
+| **AI Agent Service** | https://beworkready-ai-agent-service.onrender.com |
 
-### API Gateway
-https://beworkready-gateway.onrender.com
-
-### Microservices
-
-- Job Posting Service: https://beworkready-job-posting-service.onrender.com
-- Job Search Service: https://beworkready-job-search-service.onrender.com
-- Notification Service: https://beworkready-notification-service.onrender.com
-- AI Agent Service: https://beworkready-ai-agent-service.onrender.com
+---
 
 ## 🩺 Service Health Checks
 
-All microservices expose a `/health` endpoint for monitoring and deployment verification.
+All microservices expose a `/health` endpoint:
 
-You can use these endpoints to verify system availability:
+- API Gateway → https://beworkready-gateway.onrender.com/health
+- Job Posting Service → https://beworkready-job-posting-service.onrender.com/health
+- Job Search Service → https://beworkready-job-search-service.onrender.com/health
+- Notification Service → https://beworkready-notification-service.onrender.com/health
+- AI Agent Service → https://beworkready-ai-agent-service.onrender.com/health
 
-- API Gateway  
-  https://beworkready-gateway.onrender.com/health
+---
 
-- Job Posting Service  
-  https://beworkready-job-posting-service.onrender.com/health
+## 🎬 Demo Video
 
-- Job Search Service  
-  https://beworkready-job-search-service.onrender.com/health
+https://youtu.be/8L7dxfgWWhc
 
-- Notification Service  
-  https://beworkready-notification-service.onrender.com/health
+---
 
-- AI Agent Service  
-  https://beworkready-ai-agent-service.onrender.com/health
+## 🚀 Features
 
-  ## 🚀 Features
+- **Job Search** — Filter by title, city, town, country, work type, and salary range with real-time autocomplete
+- **Location-Based Recommendations** — Home page detects browser location and prioritises jobs in the user's city
+- **Saved Jobs (Bookmarks)** — Users can bookmark job postings and review them on a dedicated Saved Jobs page
+- **Job Alerts** — Users save search criteria as alerts; email is sent automatically when a matching job is posted
+- **User Search History** — Recent searches stored in MongoDB and shown on the home page
+- **AI Career Assistant** — Conversational AI powered by Google Gemini that searches live job data via function calling and provides career advice, CV tips, and interview guidance
+- **Role-Based Access** — Separate roles for Job Seekers and Companies; companies can post, edit, and delete their own listings
+- **Redis Caching** — Search and listing endpoints cached for fast response times
+- **Event-Driven Notifications** — RabbitMQ decouples job posting from email delivery
+- **Firebase Authentication** — Secure sign-up and sign-in with email/password and Google
 
-- Job search with filters and autocomplete
-- AI-powered job assistant
-- User search history tracking
-- Job alerts and notifications
-- Redis caching for performance
-- RabbitMQ event-driven architecture
-- Firebase authentication
-## Architecture
+---
 
-The system is composed of the following services:
+## 🏗️ Architecture
 
-1.  **API Gateway (Node.js/Express):** Single entry point for all client requests. Handles rate limiting, routing, and Firebase authentication verification.
-2.  **Job Posting Service (Node.js/Express + PostgreSQL + Redis):** Manages job creations and details. Uses PostgreSQL for reliable storage and Redis for fast read caching. Publishes events to RabbitMQ.
-3.  **Job Search Service (Node.js/Express + PostgreSQL + MongoDB + Redis):** Handles search queries, autocomplete, and filtering. Reads job data from PostgreSQL (read replica simulation) and caches results in Redis. Stores user search history in MongoDB.
-4.  **Notification Service (Node.js/Express + RabbitMQ + MongoDB + PostgreSQL):** Consumes events from RabbitMQ (new jobs, applications) and sends emails via Nodemailer. Uses `node-cron` for scheduled daily digests and personalized recommendations based on search history (from MongoDB).
-5.  **AI Agent Service (Node.js/Express + OpenAI):** Provides a chat interface for users to find jobs using natural language. Uses OpenAI function calling to interact with internal search and job detail APIs.
-6.  **Frontend (React):** A modern, dark-themed responsive UI built with React, `react-router-dom`, and custom CSS. Uses Firebase Authentication.
+The system is composed of six services communicating through an API Gateway:
 
-## Tech Stack
+1. **API Gateway** `(Node.js/Express)` — Single entry point for all client requests. Validates Firebase ID tokens, performs rate limiting, and proxies requests to internal microservices.
 
-*   **Backend:** Node.js, Express
-*   **Databases:** PostgreSQL (Relational Data), MongoDB (NoSQL/History), Redis (Caching)
-*   **Message Broker:** RabbitMQ
-*   **Auth:** Firebase Authentication
-*   **Frontend:** React (CRA)
-*   **AI:** OpenAI API (gpt-4o-mini)
-*   **Infrastructure:** Docker, Docker Compose
+2. **Job Posting Service** `(Node.js/Express + PostgreSQL + Redis)` — Manages job CRUD, applications, and saved jobs. Stores data in PostgreSQL and caches results in Redis. Publishes `job.created` events to RabbitMQ when a new listing goes live.
 
-## Prerequisites
+3. **Job Search Service** `(Node.js/Express + PostgreSQL + MongoDB + Redis)` — Handles search queries, autocomplete, and filtering. Reads job data from PostgreSQL and caches results in Redis. Stores user search history in MongoDB.
 
-*   Docker and Docker Compose
-*   Node.js (for local development without Docker)
-*   Firebase Project (for Authentication)
-*   OpenAI API Key (for AI Agent)
+4. **Notification Service** `(Node.js/Express + RabbitMQ + MongoDB + PostgreSQL)` — Consumes `job.created` events from RabbitMQ. Checks MongoDB for users whose saved alert criteria match the new job; sends email via Nodemailer (SMTP). Uses `node-cron` for scheduled digest emails.
 
-## Setup and Deployment
+5. **AI Agent Service** `(Node.js/Express + Google Gemini 2.5 Flash)` — Provides a conversational chat interface. Uses Gemini's native function calling to query the Job Search and Job Posting services in real time and return structured, markdown-formatted results.
 
-1.  **Environment Variables:**
-    *   Copy `.env.example` to `.env` in the root directory.
-    *   Fill in the required values (Firebase Admin credentials, OpenAI Key, SMTP details).
-    *   Copy `frontend/.env.example` to `frontend/.env` and fill in your Firebase Web SDK keys.
+6. **Frontend** `(React)` — Modern, responsive SPA with dark/light mode. Built with React, `react-router-dom`, and custom CSS. Authenticates users via Firebase Web SDK.
 
-2.  **Firebase Setup:**
-    *   Create a Firebase project.
-    *   Enable **Google Sign-In** in Firebase Authentication.
-    *   Get Web SDK config for `frontend/.env`.
-    *   Generate a new private key for the Admin SDK (Service Account) and put it in the root `.env`.
+---
 
-3.  **Run with Docker Compose:**
-    ```bash
-    docker-compose up --build -d
-    ```
+## 🛠️ Tech Stack
 
-    This will start all databases, message queues, backend services, and the React frontend.
+| Category | Technology |
+|---|---|
+| **Backend** | Node.js, Express.js |
+| **Databases** | PostgreSQL (jobs, applications, saved_jobs), MongoDB (search history, alert criteria) |
+| **Cache** | Redis |
+| **Message Broker** | RabbitMQ |
+| **Authentication** | Firebase Authentication (IAM) |
+| **Frontend** | React (Create React App) |
+| **AI** | Google Gemini 2.5 Flash (`@google/genai`) |
+| **Email** | Nodemailer (SMTP) |
+| **Infrastructure** | Docker, Docker Compose |
 
-4.  **Accessing the Application:**
-    *   **Frontend:** `http://localhost:80` (or `http://localhost:3000` for API Gateway if hitting endpoints directly)
+---
 
-## ER Diagram (Conceptual)
+## ✅ Prerequisites
+
+- Docker and Docker Compose
+- Node.js v20+ (for local development without Docker)
+- Firebase Project (Authentication enabled)
+- Google Gemini API Key (for AI Agent — stored as `OPENAI_API_KEY` in `.env`)
+- SMTP credentials (for email notifications)
+
+---
+
+## ⚙️ Setup & Deployment
+
+### 1. Environment Variables
+
+```bash
+# Root .env (backend services)
+cp .env.example .env
+# Fill in: Firebase Admin SDK credentials, Gemini API key, SMTP details,
+# Postgres/Mongo/Redis/RabbitMQ passwords
+
+# Frontend .env (Firebase Web SDK)
+cp frontend/.env.example frontend/.env
+# Fill in: REACT_APP_FIREBASE_API_KEY, REACT_APP_FIREBASE_AUTH_DOMAIN, etc.
+```
+
+### 2. Firebase Setup
+
+1. Create a Firebase project at https://console.firebase.google.com
+2. Enable **Email/Password** (and optionally Google) sign-in under Authentication
+3. Copy the **Web SDK config** into `frontend/.env`
+4. Generate a **Service Account private key** (Admin SDK) and place the values in the root `.env`
+
+### 3. Run with Docker Compose
+
+```bash
+docker-compose up --build -d
+```
+
+This starts all databases (PostgreSQL, MongoDB, Redis), the message broker (RabbitMQ), all backend microservices, and the React frontend served via Nginx.
+
+### 4. Access the Application
+
+| Endpoint | URL |
+|---|---|
+| Frontend | http://localhost:80 |
+| API Gateway | http://localhost:3000 |
+| RabbitMQ Management UI | http://localhost:15672 |
+
+---
+
+## 🗄️ ER Diagram (PostgreSQL)
 
 ```mermaid
 erDiagram
     JOBS {
-        uuid id PK
-        string title
-        text description
-        string city
-        string country
-        string working_type
-        string company_name
-        string company_logo_url
-        numeric salary_min
-        numeric salary_max
-        string currency
-        string posted_by_uid
-        boolean is_active
-        integer application_count
-        timestamp created_at
-    }
-    APPLICATIONS {
-        uuid id PK
-        uuid job_id FK
-        string user_uid
-        string user_email
-        text cover_note
-        timestamp applied_at
-    }
-    SEARCH_HISTORY {
-        objectId _id PK
-        string userId
-        string query
-        string city
-        string workingType
-        timestamp timestamp
+        uuid        id               PK
+        varchar     title
+        text        description
+        varchar     city
+        varchar     country
+        varchar     town
+        varchar     working_type
+        varchar     company_name
+        text        company_logo_url
+        numeric     salary_min
+        numeric     salary_max
+        varchar     currency
+        varchar     posted_by_uid
+        boolean     is_active
+        integer     application_count
+        timestamptz created_at
+        timestamptz updated_at
     }
 
-    JOBS ||--o{ APPLICATIONS : receives
+    APPLICATIONS {
+        uuid        id         PK
+        uuid        job_id     FK
+        varchar     user_uid
+        varchar     user_email
+        text        cover_note
+        timestamptz applied_at
+    }
+
+    SAVED_JOBS {
+        uuid        id       PK
+        uuid        job_id   FK
+        varchar     user_uid
+        timestamptz saved_at
+    }
+
+    JOBS ||--o{ APPLICATIONS : "receives"
+    JOBS ||--o{ SAVED_JOBS   : "bookmarked in"
 ```
 
-## Assumptions & Design Decisions
+> **MongoDB** (job-search-service & notification-service) stores:
+> - `search_history` — `{ userId, query, city, workingType, timestamp }`
+> - `job_alerts` — `{ userId, userEmail, keyword, city, working_type, salary_min, active }`
 
-*   **Authentication:** Gateway handles token verification. Services trust the Gateway via `x-user-uid` headers, but can also verify tokens directly for direct calls.
-*   **Search DB:** For simplicity in this demo, the Search Service connects to the same PostgreSQL instance as the Posting Service (acting as a read-replica pattern). In a massive scale scenario, data would be synced to Elasticsearch.
-*   **Caching:** Aggressive caching (Redis) is applied to search and listing endpoints with short TTLs to balance performance and data freshness.
-*   **Notifications:** Uses Nodemailer. In production, this would integrate with SendGrid/AWS SES. RabbitMQ ensures no applications/job events are lost during high load.
+---
+
+## 📐 Design Decisions
+
+- **Auth flow:** The API Gateway verifies Firebase ID tokens and forwards `x-user-uid` / `x-user-email` headers to downstream services. Services trust these headers from the gateway.
+- **Search DB:** The Search Service connects to the same PostgreSQL instance as the Posting Service (read-replica pattern for this demo). At scale, data would sync to Elasticsearch.
+- **Caching:** Redis caches search results and job listings with short TTLs to balance performance with data freshness. Cache is invalidated on every create/update/delete.
+- **Notifications:** Nodemailer with SMTP. At production scale this would use SendGrid or AWS SES. RabbitMQ ensures no job events are dropped during high load.
+- **AI Key Naming:** The Gemini API key is stored under the `OPENAI_API_KEY` environment variable for compatibility with existing deployment configurations.
